@@ -46,7 +46,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void UpdateUI()
+    public void UpdateUI()
     {
         biomassText.text = "Biomass: " + currentBiomass;
     }
