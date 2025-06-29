@@ -6,7 +6,8 @@ public class SpikeSpitterModule : MonoBehaviour
     public float fireRate = 1f; // Saniyede kaç atış
     public float range = 15f; // Ateş menzili
     public GameObject projectilePrefab; // Mermi prefabı
-    public Transform firePoint; // Merminin çıkacağı nokta
+    public Transform firePoint; // Merminin çıkacağı 
+    
 
     private float fireCountdown = 0f;
     private Transform target;
@@ -59,8 +60,15 @@ public class SpikeSpitterModule : MonoBehaviour
 
     void Shoot()
     {
-        // TODO: Mermi fırlatma kodu
-        Debug.Log(target.name + " hedefine ateş ediliyor!");
+        // Mermiyi oluştur
+        GameObject projectileGO = Instantiate(projectilePrefab, firePoint.position, firePoint.rotation);
+        Projectile projectile = projectileGO.GetComponent<Projectile>();
+
+        // Mermiye hedefini söyle
+        if (projectile != null)
+        {
+            projectile.Seek(target);
+        }
     }
 
     // Menzili Scene'de görmek için

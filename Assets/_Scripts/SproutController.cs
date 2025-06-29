@@ -8,6 +8,10 @@ public class SproutController : MonoBehaviour
 
     [Header("Module Prefabs")]
     public GameObject spikeSpitterPrefab;
+    public GameObject clawNestPrefab;
+
+    [Header("Unit Prefabs")]
+    public GameObject clawCellPrefab; // Yeni birim prefabı
 
     [Header("Settings")]
     public LayerMask slotLayerMask; // Inspector'dan 'Slots' katmanını seçeceğiz
@@ -19,7 +23,7 @@ public class SproutController : MonoBehaviour
     {
         // Gerekli bileşenleri başta bir kere bulup saklamak performansı artırır.
         playerController = GetComponent<PlayerController>();
-        
+
         // Oyun başlangıcında menünün kapalı olduğundan emin ol.
         if (sproutMenu != null)
         {
@@ -86,10 +90,10 @@ public class SproutController : MonoBehaviour
 
             // Modülü oluştur ve slotun pozisyonuna/rotasyonuna yerleştir.
             GameObject moduleGO = Instantiate(spikeSpitterPrefab, selectedSlot.transform.position, selectedSlot.transform.rotation);
-            
+
             // Oluşturulan modülü slotun alt objesi (child) yap. Bu, Çekirdek hareket ettiğinde modülün de onunla gelmesini sağlar.
             moduleGO.transform.SetParent(selectedSlot.transform);
-            
+
             // Slotun artık dolu olduğunu ve üzerinde hangi modülün olduğunu kaydet.
             selectedSlot.currentModule = moduleGO;
 
@@ -110,4 +114,51 @@ public class SproutController : MonoBehaviour
             CloseSproutMenu();
         }
     }
+    // Yeni bir metot: Bu, inşa menüsündeki "Pençe Yuvası İnşa Et" butonuna bağlanacak.
+public void BuildClawNest()
+{
+    if (selectedSlot != null && playerController.currentBiomass >= 75) // Maliyeti 75 olsun
+    {
+        playerController.currentBiomass -= 75;
+        playerController.UpdateUI();
+
+        GameObject moduleGO = Instantiate(clawNestPrefab, selectedSlot.transform.position, selectedSlot.transform.rotation);
+        moduleGO.transform.SetParent(selectedSlot.transform);
+        selectedSlot.currentModule = moduleGO;
+
+        Renderer slotVisual = selectedSlot.GetComponentInChildren<Renderer>();
+        if (slotVisual != null) { slotVisual.enabled = false; }
+        
+        CloseSproutMenu();
+    }
+    else
+    {
+        Debug.LogWarning("Yeterli Biyo-Kütle yok!");
+        CloseSproutMenu();
+    }
+}
+
+// Yeni bir metot: Bu, ana UI'daki "Pençe Hücresi Üret" butonuna bağlanacak.
+public void SpawnClawCell()
+{
+    if (playerController.currentBiomass >= 25) // Maliyeti 25
+    {
+        // Oyuncunun sahip olduğu tüm Pençe Yuvalarını bul
+        ClawNestModule[] nests = FindObjectsOfType<ClawNestModule>();
+        if (nests.Length > 0)
+        {
+            // İlk bulduğun yuvadan birim üret (şimdilik basit tutalım)
+            Transform spawnPoint = nests[0].spawnPoint;
+            Instantiate(clawCellPrefab, spawnPoint.position, spawnPoint.rotation);
+
+            playerController.currentBiomass -= 25;
+            playerController.UpdateUI();
+        }
+        else
+        {
+            Debug.LogWarning("Pençe Hücresi üretmek için Pençe Yuvası yok!");
+        }
+    }
+}
+    
 }
