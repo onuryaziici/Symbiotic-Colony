@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Wave_2
   m_EditorClassIdentifier: 
   enemyGroups:
-  - enemyPrefab: {fileID: 5756816239822589612, guid: 468ea3e57154a2640931a2d9b6e725d0, type: 3}
-    count: 7
+  - enemyPrefab: {fileID: 8203833203113874608, guid: 5b28bb4ec08f07c4489e6253c3508cb6, type: 3}
+    count: 8
+  - enemyPrefab: {fileID: 827005773745857618, guid: d4f2a518cd1acec4db5336f6e6082e4a, type: 3}
+    count: 1
   timeBetweenSpawns: 0.5
