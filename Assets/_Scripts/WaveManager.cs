@@ -21,9 +21,11 @@ public class WaveManager : MonoBehaviour
     private int currentWaveIndex = 0;
     private float waveCountdown;
     private float searchCountdown = 1f; // Düşmanları ne sıklıkla kontrol edeceğimiz
+    private EvolutionManager evolutionManager;
 
     void Start()
     {
+        evolutionManager = GetComponent<EvolutionManager>();
         waveCountdown = timeBetweenWaves;
         currentState = SpawnState.COUNTING; // Geri sayımla başla
         UpdateWaveCountUI();
@@ -48,7 +50,7 @@ public class WaveManager : MonoBehaviour
                 return;
             }
         }
-        
+
         // Geri sayım yapılıyorsa
         if (currentState == SpawnState.COUNTING)
         {
@@ -88,34 +90,48 @@ public class WaveManager : MonoBehaviour
     {
         Debug.Log("Wave " + (currentWaveIndex + 1) + " Completed!");
 
-        // Eğer bir sonraki dalga, toplam dalga sayısını aşıyorsa, oyun bitmiştir.
+        // 1. KAZANMA DURUMUNU KONTROL ET
+        // Eğer az önce biten dalga, son dalga ise, oyunu bitir ve kazanma ekranını göster.
         if (currentWaveIndex + 1 >= waves.Length)
         {
             Debug.Log("ALL WAVES COMPLETED! You Win!");
             
-            // --- YENİ EKLENEN UI GÜNCELLEME KODLARI ---
-            waveCountText.text = "YOU WIN!"; // Dalga sayacı yerine "KAZANDIN!" yaz.
-            waveCountdownText.gameObject.SetActive(false); // Geri sayım metnini tamamen gizle.
+            // UI'ı "Kazanma" durumuna getir
+            waveCountText.text = "YOU WIN!";
+            if (waveCountdownText != null)
+            {
+                waveCountdownText.gameObject.SetActive(false);
+            }
             
-            // TODO: Belki burada GameManager'a bir "Win" durumu gönderilebilir.
-            // GameManager.Instance.ChangeState(GameState.Won);
-
-            this.enabled = false; // WaveManager'ı devre dışı bırak.
-            return; // Metodun geri kalanını çalıştırma.
+            // WaveManager'ın daha fazla çalışmasını engelle
+            this.enabled = false;
+            return; // Metodun geri kalanını çalıştırmadan buradan çık
         }
 
-        // Eğer oyun devam ediyorsa, normal işlemleri yap.
-        currentWaveIndex++;
-        currentState = SpawnState.COUNTING;
-        waveCountdown = timeBetweenWaves;
-        UpdateWaveCountUI();
+        // 2. EVRİM ZAMANINI KONTROL ET
+        // Eğer az önce biten dalganın numarası (1'den başlayarak) 3'ün katıysa, evrim ekranını tetikle.
+        // (Örn: 3. dalga bittiğinde currentWaveIndex=2 olur, 2+1=3. 3%3=0 olduğu için koşul sağlanır)
+        if ((currentWaveIndex + 1) % 3 == 0)
+        {
+            if (evolutionManager != null)
+            {
+                evolutionManager.TriggerEvolutionChoice();
+                // Evrim ekranı açılacağı ve oyun duracağı için, bu metot görevini tamamlamıştır.
+                // Yeni dalganın geri sayımını başlatma sorumluluğu artık EvolutionManager'dadır.
+                return; 
+            }
+        }
+
+        // 3. NORMAL DALGA GEÇİŞİ
+        // Eğer kazanma veya evrim durumu yoksa, direkt olarak bir sonraki dalgaya geç.
+        StartNextWave();
     }
 
     // Artık parametre alıyor
     IEnumerator SpawnWave(WaveData wave)
     {
         Debug.Log("Spawning Wave: " + (currentWaveIndex + 1));
-        
+
         foreach (EnemyGroup group in wave.enemyGroups)
         {
             for (int i = 0; i < group.count; i++)
@@ -140,10 +156,18 @@ public class WaveManager : MonoBehaviour
     {
         waveCountText.text = "Wave: " + (currentWaveIndex + 1).ToString();
     }
-    
+
     public int GetCurrentWaveNumber()
     {
         // GameOver ekranı için
         return currentWaveIndex + 1;
+    }
+    public void StartNextWave()
+    {
+        // Bu metot, EvolutionManager tarafından çağrılacak.
+        currentWaveIndex++;
+        currentState = SpawnState.COUNTING;
+        waveCountdown = timeBetweenWaves;
+        UpdateWaveCountUI();
     }
 }
