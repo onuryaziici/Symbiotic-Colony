@@ -4,50 +4,64 @@ using UnityEngine;
 public class EvolutionManager : MonoBehaviour
 {
     [Header("Setup")]
-    public GameObject evolutionPanel; // Evrim panelini buraya sürükleyeceğiz
-    public Transform cardContainer;   // Kartların oluşturulacağı yer
-    public GameObject cardPrefab;     // Kart UI prefabı
+    public GameObject evolutionPanel;       // Evrim panelinin referansı
+    public Transform cardContainer;         // Kartların oluşturulacağı UI konteyneri
+    public GameObject cardPrefab;           // Tek bir kartın UI prefab'ı
 
     [Header("Card Pool")]
-    public List<EvolutionCardData> availableCards; // Tüm olası kartların listesi
+    public List<EvolutionCardData> availableCards; // Oyunda çıkabilecek tüm olası kartların listesi
 
+    // Gerekli diğer yönetici script'lerine referanslar
     private WaveManager waveManager;
-
-    // Gerekli yöneticilere referanslar
     private PlayerHealth playerHealth;
-    // Gelecekte eklenecekler: PlayerStats, ModuleManager, UnitManager vb.
-    // Sadece test amaçlı bir Update metodu ekliyoruz.
-    void Update()
-    {
-        // Eğer 'K' tuşuna basılırsa...
-        if (Input.GetKeyDown(KeyCode.K))
-        {
-            // ... ve Evrim paneli zaten açık değilse (üst üste açılmasını engellemek için) ...
-            if (!evolutionPanel.activeInHierarchy)
-            {
-                Debug.Log("DEBUG: Triggering evolution choice via key press.");
-                TriggerEvolutionChoice();
-            }
-        }
-    }
+    private PlayerController playerController;
+
+    // Stat bonuslarını saklamak için bir sözlük (Dictionary)
+    // Key: "ClawCell_Damage" gibi benzersiz bir ID
+    // Value: Toplam bonus miktarı (örn: %30 için 0.3)
+    public Dictionary<string, float> statBonuses = new Dictionary<string, float>();
+
     void Start()
     {
+        // Gerekli bileşenleri ve yöneticileri başta bir kere bulup sakla
         waveManager = FindObjectOfType<WaveManager>();
-        evolutionPanel.SetActive(false);
+        
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
             playerHealth = player.GetComponent<PlayerHealth>();
+            playerController = player.GetComponent<PlayerController>();
+        }
+        
+        // Oyun başlangıcında Evrim panelinin kapalı olduğundan emin ol
+        if (evolutionPanel != null)
+        {
+            evolutionPanel.SetActive(false);
         }
     }
 
-    // Bu metot, WaveManager tarafından çağrılacak.
+    // Test amaçlı debug kodu
+    void Update()
+    {
+        // Eğer 'K' tuşuna basılırsa ve panel zaten açık değilse Evrim ekranını tetikle
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            if (evolutionPanel != null && !evolutionPanel.activeInHierarchy)
+            {
+                Debug.Log("DEBUG: Evrim seçimi test tuşu ile tetiklendi.");
+                TriggerEvolutionChoice();
+            }
+        }
+    }
+
+    // Bu metot, WaveManager tarafından veya test tuşu ile çağrılır
     public void TriggerEvolutionChoice()
     {
-        Time.timeScale = 0f; // Oyunu durdur
+        // Oyunu durdur ve paneli görünür yap
+        Time.timeScale = 0f;
         evolutionPanel.SetActive(true);
 
-        // Mevcut kartları temizle (varsa)
+        // Bir önceki seçimden kalan kartları temizle
         foreach (Transform child in cardContainer)
         {
             Destroy(child.gameObject);
@@ -56,48 +70,26 @@ public class EvolutionManager : MonoBehaviour
         // Havuzdan rastgele 3 farklı kart seç
         List<EvolutionCardData> chosenCards = GetRandomCards(3);
 
-        // Seçilen kartlar için UI oluştur
+        // Seçilen her kart için bir UI objesi oluştur ve ayarla
         foreach (EvolutionCardData cardData in chosenCards)
         {
-            // Kart prefab'ını oluştur
             GameObject cardGO = Instantiate(cardPrefab, cardContainer);
-
-            // Oluşturulan kartın üzerindeki CardUI script'ini bul
             CardUI cardUI = cardGO.GetComponent<CardUI>();
 
-            // Eğer script bulunduysa, Setup metodunu çağırarak verileri gönder
             if (cardUI != null)
             {
-                cardUI.Setup(cardData, this); // 'this' diyerek kendisini (EvolutionManager'ı) de gönderir
-            }
-            else
-            {
-                Debug.LogError("Card Prefab'ında CardUI script'i bulunamadı!");
+                // CardUI'a hem kart verisini hem de bu yöneticinin referansını gönder
+                cardUI.Setup(cardData, this);
             }
         }
     }
 
-    List<EvolutionCardData> GetRandomCards(int count)
-    {
-        List<EvolutionCardData> poolCopy = new List<EvolutionCardData>(availableCards);
-        List<EvolutionCardData> chosen = new List<EvolutionCardData>();
-
-        for (int i = 0; i < count; i++)
-        {
-            if (poolCopy.Count == 0) break;
-            int randomIndex = Random.Range(0, poolCopy.Count);
-            chosen.Add(poolCopy[randomIndex]);
-            poolCopy.RemoveAt(randomIndex);
-        }
-
-        return chosen;
-    }
-
-    // Bu metot, kartın butonuna tıklandığında çağrılacak.
+    // Bu metot, bir CardUI üzerindeki butona tıklandığında çağrılır
     public void ApplyEvolution(EvolutionCardData chosenCard)
     {
-        Debug.Log(chosenCard.cardName + " seçildi!");
-        // --- YENİ EKLENEN EFEKT UYGULAMA MANTIĞI ---
+        Debug.Log("'" + chosenCard.cardName + "' kartı seçildi ve efekti uygulanıyor.");
+
+        // Seçilen kartın türüne göre ilgili efekti uygula
         switch (chosenCard.effectType)
         {
             case EvolutionEffectType.PlayerStatChange:
@@ -105,45 +97,94 @@ public class EvolutionManager : MonoBehaviour
                 break;
 
             case EvolutionEffectType.ModuleStatChange:
-                // TODO: Modül statlarını değiştiren metodu çağır
-                Debug.LogWarning("ModuleStatChange efekti henüz uygulanmadı.");
-                break;
-
             case EvolutionEffectType.UnitStatChange:
-                // TODO: Birim statlarını değiştiren metodu çağır
-                Debug.LogWarning("UnitStatChange efekti henüz uygulanmadı.");
+                ApplyGenericStatChange(chosenCard);
                 break;
 
             case EvolutionEffectType.ResourceGain:
-                // TODO: Kaynak kazandıran metodu çağır
-                Debug.LogWarning("ResourceGain efekti henüz uygulanmadı.");
+                ApplyResourceGain(chosenCard);
                 break;
         }
-        // Seçim yapıldıktan sonra paneli kapat ve oyunu devam ettir
+
+        // Seçim yapıldıktan sonra paneli kapat, oyunu devam ettir ve bir sonraki dalgayı başlat
         evolutionPanel.SetActive(false);
         Time.timeScale = 1f;
+        
         if (waveManager != null)
         {
             waveManager.StartNextWave();
         }
     }
-    
-    // Player statlarını değiştiren yardımcı metot
+
+    // Modül ve Birim statlarını değiştiren genel metot
+    private void ApplyGenericStatChange(EvolutionCardData card)
+    {
+        string id = card.targetId;
+        float value = card.value;
+
+        if (statBonuses.ContainsKey(id))
+        {
+            statBonuses[id] += value; // Var olan bonusun üzerine ekle
+        }
+        else
+        {
+            statBonuses.Add(id, value); // Yeni bir bonus olarak ekle
+        }
+        Debug.Log(id + " bonusu " + (statBonuses[id] * 100) + "% değerine yükseldi.");
+    }
+
+    // Oyuncu statlarını değiştiren metot
     private void ApplyPlayerStatChange(EvolutionCardData card)
     {
-        if (playerHealth == null) return;
-
-        // targetId'ye göre hangi statın değişeceğine karar ver
         if (card.targetId == "MaxHealth")
         {
-            // Kartın value'su kadar maksimum canı artır
-            playerHealth.maxHealth += (int)card.value;
-            // Mevcut canı da aynı miktarda artırarak oyuncuyu ödüllendir
-            playerHealth.currentHealth += (int)card.value;
-            // TODO: Can barı UI'ını güncelle
-            Debug.Log("BioCore maksimum canı " + card.value + " arttı!");
+            if (playerHealth != null)
+            {
+                int healAmount = (int)card.value;
+                playerHealth.maxHealth += healAmount;
+                playerHealth.Heal(healAmount); // Hem canı artır hem de UI'ı güncelle
+
+                // Bu metot artık Heal içinde çağrıldığı için tekrar çağırmaya gerek yok,
+                // ama yapısal olarak maxHealth değiştiğinde UI'ın güncellenmesi gerektiğini bilmek önemli.
+                // playerHealth.UpdateMaxHealth(); 
+            }
         }
-        // else if (card.targetId == "Speed") { ... }
-        // ... diğer statlar ...
+    }
+
+    // Anında kaynak kazandıran metot
+    private void ApplyResourceGain(EvolutionCardData card)
+    {
+        if (playerController != null)
+        {
+            playerController.currentBiomass += (int)card.value;
+            playerController.UpdateUI();
+        }
+    }
+
+    // Diğer script'lerin bu bonusları sorgulayabilmesi için public metot
+    public float GetStatBonus(string statId)
+    {
+        if (statBonuses.ContainsKey(statId))
+        {
+            return statBonuses[statId];
+        }
+        return 0f; // Eğer o stat için bir bonus yoksa 0 döndür
+    }
+
+    // Kart havuzundan belirtilen sayıda rastgele ve benzersiz kart seçen metot
+    private List<EvolutionCardData> GetRandomCards(int count)
+    {
+        List<EvolutionCardData> poolCopy = new List<EvolutionCardData>(availableCards);
+        List<EvolutionCardData> chosen = new List<EvolutionCardData>();
+
+        for (int i = 0; i < count; i++)
+        {
+            if (poolCopy.Count == 0) break;
+
+            int randomIndex = Random.Range(0, poolCopy.Count);
+            chosen.Add(poolCopy[randomIndex]);
+            poolCopy.RemoveAt(randomIndex);
+        }
+        return chosen;
     }
 }
